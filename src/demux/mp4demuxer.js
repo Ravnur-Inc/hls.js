@@ -347,32 +347,36 @@ class MP4Demuxer {
   }
 
   static offsetStartDTS (initData, fragment, timeOffset) {
-    MP4Demuxer.findBox(fragment, ['moof', 'traf']).map(function (traf) {
-      return MP4Demuxer.findBox(traf, ['tfhd']).map(function (tfhd) {
-      // get the track id from the tfhd
-        let id = MP4Demuxer.readUint32(tfhd, 4);
-        // assume a 90kHz clock if no timescale was specified
-        let timescale = initData[id].timescale || 90e3;
+    // Modification of the 'baseMediaDecodeTime' field of '/moof/traf/tfdt' invalidates chunk hash for C2PA-enabled video.
+    // As a temporary workaround we just disable modification of that field.
+    // Please see https://ravnur.atlassian.net/browse/RMP-594 for the details.
 
-        // get the base media decode time from the tfdt
-        MP4Demuxer.findBox(traf, ['tfdt']).map(function (tfdt) {
-          let version = tfdt.data[tfdt.start];
-          let baseMediaDecodeTime = MP4Demuxer.readUint32(tfdt, 4);
-          if (version === 0) {
-            MP4Demuxer.writeUint32(tfdt, 4, baseMediaDecodeTime - timeOffset * timescale);
-          } else {
-            baseMediaDecodeTime *= Math.pow(2, 32);
-            baseMediaDecodeTime += MP4Demuxer.readUint32(tfdt, 8);
-            baseMediaDecodeTime -= timeOffset * timescale;
-            baseMediaDecodeTime = Math.max(baseMediaDecodeTime, 0);
-            const upper = Math.floor(baseMediaDecodeTime / (UINT32_MAX + 1));
-            const lower = Math.floor(baseMediaDecodeTime % (UINT32_MAX + 1));
-            MP4Demuxer.writeUint32(tfdt, 4, upper);
-            MP4Demuxer.writeUint32(tfdt, 8, lower);
-          }
-        });
-      });
-    });
+    // MP4Demuxer.findBox(fragment, ['moof', 'traf']).map(function (traf) {
+    //   return MP4Demuxer.findBox(traf, ['tfhd']).map(function (tfhd) {
+    //   // get the track id from the tfhd
+    //     let id = MP4Demuxer.readUint32(tfhd, 4);
+    //     // assume a 90kHz clock if no timescale was specified
+    //     let timescale = initData[id].timescale || 90e3;
+
+    //     // get the base media decode time from the tfdt
+    //     MP4Demuxer.findBox(traf, ['tfdt']).map(function (tfdt) {
+    //       let version = tfdt.data[tfdt.start];
+    //       let baseMediaDecodeTime = MP4Demuxer.readUint32(tfdt, 4);
+    //       if (version === 0) {
+    //         MP4Demuxer.writeUint32(tfdt, 4, baseMediaDecodeTime - timeOffset * timescale);
+    //       } else {
+    //         baseMediaDecodeTime *= Math.pow(2, 32);
+    //         baseMediaDecodeTime += MP4Demuxer.readUint32(tfdt, 8);
+    //         baseMediaDecodeTime -= timeOffset * timescale;
+    //         baseMediaDecodeTime = Math.max(baseMediaDecodeTime, 0);
+    //         const upper = Math.floor(baseMediaDecodeTime / (UINT32_MAX + 1));
+    //         const lower = Math.floor(baseMediaDecodeTime % (UINT32_MAX + 1));
+    //         MP4Demuxer.writeUint32(tfdt, 4, upper);
+    //         MP4Demuxer.writeUint32(tfdt, 8, lower);
+    //       }
+    //     });
+    //   });
+    // });
   }
 
   // feed incoming data to the front of the parsing pipeline
