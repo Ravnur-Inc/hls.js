@@ -480,38 +480,42 @@ export function offsetStartDTS(
   fmp4: Uint8Array,
   timeOffset: number
 ) {
-  findBox(fmp4, ['moof', 'traf']).forEach((traf) => {
-    findBox(traf, ['tfhd']).forEach((tfhd) => {
-      // get the track id from the tfhd
-      const id = readUint32(tfhd, 4);
-      const track = initData[id];
-      if (!track) {
-        return;
-      }
-      // assume a 90kHz clock if no timescale was specified
-      const timescale = track.timescale || 90e3;
-      // get the base media decode time from the tfdt
-      findBox(traf, ['tfdt']).forEach((tfdt) => {
-        const version = tfdt[0];
-        let baseMediaDecodeTime = readUint32(tfdt, 4);
+  // Modification of the 'baseMediaDecodeTime' field of '/moof/traf/tfdt' invalidates chunk hash for C2PA-enabled video.
+  // As a temporary workaround we just disable modification of that field.
+  // Please see https://ravnur.atlassian.net/browse/RMP-594 for the details.
 
-        if (version === 0) {
-          baseMediaDecodeTime -= timeOffset * timescale;
-          baseMediaDecodeTime = Math.max(baseMediaDecodeTime, 0);
-          writeUint32(tfdt, 4, baseMediaDecodeTime);
-        } else {
-          baseMediaDecodeTime *= Math.pow(2, 32);
-          baseMediaDecodeTime += readUint32(tfdt, 8);
-          baseMediaDecodeTime -= timeOffset * timescale;
-          baseMediaDecodeTime = Math.max(baseMediaDecodeTime, 0);
-          const upper = Math.floor(baseMediaDecodeTime / (UINT32_MAX + 1));
-          const lower = Math.floor(baseMediaDecodeTime % (UINT32_MAX + 1));
-          writeUint32(tfdt, 4, upper);
-          writeUint32(tfdt, 8, lower);
-        }
-      });
-    });
-  });
+  // findBox(fmp4, ['moof', 'traf']).forEach((traf) => {
+  //   findBox(traf, ['tfhd']).forEach((tfhd) => {
+  //     // get the track id from the tfhd
+  //     const id = readUint32(tfhd, 4);
+  //     const track = initData[id];
+  //     if (!track) {
+  //       return;
+  //     }
+  //     // assume a 90kHz clock if no timescale was specified
+  //     const timescale = track.timescale || 90e3;
+  //     // get the base media decode time from the tfdt
+  //     findBox(traf, ['tfdt']).forEach((tfdt) => {
+  //       const version = tfdt[0];
+  //       let baseMediaDecodeTime = readUint32(tfdt, 4);
+
+  //       if (version === 0) {
+  //         baseMediaDecodeTime -= timeOffset * timescale;
+  //         baseMediaDecodeTime = Math.max(baseMediaDecodeTime, 0);
+  //         writeUint32(tfdt, 4, baseMediaDecodeTime);
+  //       } else {
+  //         baseMediaDecodeTime *= Math.pow(2, 32);
+  //         baseMediaDecodeTime += readUint32(tfdt, 8);
+  //         baseMediaDecodeTime -= timeOffset * timescale;
+  //         baseMediaDecodeTime = Math.max(baseMediaDecodeTime, 0);
+  //         const upper = Math.floor(baseMediaDecodeTime / (UINT32_MAX + 1));
+  //         const lower = Math.floor(baseMediaDecodeTime % (UINT32_MAX + 1));
+  //         writeUint32(tfdt, 4, upper);
+  //         writeUint32(tfdt, 8, lower);
+  //       }
+  //     });
+  //   });
+  // });
 }
 
 // TODO: Check if the last moof+mdat pair is part of the valid range
